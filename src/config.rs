@@ -13,6 +13,7 @@ pub struct Auth {
     pub host: String,
     pub user: String,
     pub password: String,
+    pub path: String,
 }
 
 impl Config {

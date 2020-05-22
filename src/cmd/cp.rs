@@ -17,12 +17,24 @@ pub fn cmd(conf: &Config, args: &Cp, Opts { verbose, .. }: &Opts) -> Result<()> 
     let srcpath = Path::new(&args.src);
     let srcname = srcpath.file_name().unwrap().to_str().unwrap();
     let mut dstname = String::from(accesspath[1]);
+    // if no dest or dest is relative, add prefix path defined in config
+    if access.path.len() != 0 && (dstname.len() == 0 || !dstname.starts_with('/')) {
+        dstname.push_str(&access.path);
+        if !access.path.ends_with('/') {
+            dstname.push_str("/");
+        }
+    }
+    // id no dst ends with /, append the src filename
     if dstname.len() == 0 || dstname.ends_with('/') {
         dstname.push_str(srcname);
     };
+    // remove leading / if necessary
+    if dstname.starts_with('/') {
+        dstname = (&dstname[1..]).to_string();
+    }
 
-    let reader = File::open(&srcpath).unwrap();
-    let metadata = reader.metadata().unwrap();
+    let reader = File::open(&srcpath)?;
+    let metadata = reader.metadata()?;
     let url = format!(
         "https://{}/remote.php/dav/files/{}/{}",
         &access.host, &access.user, &dstname
