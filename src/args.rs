@@ -3,7 +3,7 @@ use argh::FromArgs;
 #[derive(FromArgs)]
 /// Extract latest projects archives from a gitlab server
 pub struct Opts {
-    #[argh(option, short = 'c')]
+    #[argh(option, short = 'c', default = "\"/etc/nctl.yml\".to_string()")]
     /// configuration file containing projects and gitlab connection parameters
     pub config: String,
     #[argh(switch, short = 'v')]
