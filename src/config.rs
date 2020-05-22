@@ -5,11 +5,12 @@ use std::fs::File;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
-    pub hosts: BTreeMap<String, Auth>,
+    pub access: BTreeMap<String, Auth>,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct Auth {
+    pub host: String,
     pub user: String,
     pub password: String,
 }
