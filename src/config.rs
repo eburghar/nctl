@@ -5,14 +5,25 @@ use std::fs::File;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
-	pub access: BTreeMap<String, Auth>,
+	pub account: Account,
+	pub paths: BTreeMap<String, Path>,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct Auth {
-	pub host: String,
+pub struct Account {
+	pub url: String,
+	#[serde(default = "default_path_prefix")]
+	pub path_prefix: String,
 	pub user: String,
 	pub password: String,
+}
+
+fn default_path_prefix() -> String {
+	"/".to_string()
+}
+
+#[derive(Deserialize, Clone)]
+pub struct Path {
 	pub path: String,
 }
 

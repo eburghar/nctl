@@ -3,54 +3,64 @@ use crate::{
 	config::Config,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
+use reqwest::{
+	blocking::{Body, Client},
+	header, Method,
+};
 use std::{fs::File, path::Path};
 
 pub fn cmd(conf: &Config, args: &Cp, Opts { verbose, .. }: &Opts) -> Result<()> {
-	let accesspath: Vec<&str> = args.dst.split(':').collect();
-	if accesspath.len() != 2 {
-		Err(anyhow!("dst should be config:path"))?;
+	let file: Vec<&str> = args.dst.split(':').collect();
+	if file.len() != 2 {
+		bail!("dst should be alias:[path]")
 	}
-	let access = match conf.access.get(accesspath[0]) {
-		Some(access) => access,
-		None => Err(anyhow!("config {} hast not been defined", accesspath[0]))?,
-	};
+
+	// get source filename
 	let srcpath = Path::new(&args.src);
 	let srcname = srcpath.file_name().unwrap().to_str().unwrap();
-	let mut dstname = String::from(accesspath[1]);
-	// if no dest or dest is relative, add prefix path defined in config
-	if access.path.len() != 0 && (dstname.len() == 0 || !dstname.starts_with('/')) {
-		dstname.push_str(&access.path);
-		if !access.path.ends_with('/') {
-			dstname.push_str("/");
-		}
-	}
-	// id no dst ends with /, append the src filename
-	if dstname.len() == 0 || dstname.ends_with('/') {
-		dstname.push_str(srcname);
+
+	// id dst path is empty or ends with /, append the source filename
+	let dst = if file[1].len() == 0 || file[1].ends_with('/') {
+		format!("{}{}", file[1], srcname)
+	} else {
+		file[1].to_owned()
 	};
-	// remove leading / if necessary
-	if dstname.starts_with('/') {
-		dstname = (&dstname[1..]).to_string();
-	}
+
+	let path = match conf.paths.get(file[0]) {
+		Some(alias) => {
+			// if the specified file is absolute return as is
+			if file[1].starts_with('/') {
+				file[1].to_owned()
+			} else {
+				// if the aliased path is absolute prepend aliased path to file
+				if alias.path.starts_with('/') {
+					format!("{}/{}", alias.path, &dst)
+				// otherwise prepend path_prefix and aliased path to file
+				} else {
+					format!("{}/{}/{}", &conf.account.path_prefix, alias.path, &dst)
+				}
+			}
+		}
+		None => bail!("path {} has not been defined", file[0]),
+	};
 
 	let reader = File::open(&srcpath)?;
 	let metadata = reader.metadata()?;
-	let url = format!(
-		"https://{}/remote.php/dav/files/{}/{}",
-		&access.host, &access.user, &dstname
-	);
-	let r1 = ureq::put(&url)
-		.auth(&access.user, &access.password)
-		.set("Content-Length", &metadata.len().to_string())
-		.send(reader);
-	match r1.status() {
-		200..=226 => {
-			if *verbose {
-				println!("{} -> {}:{}", srcname, accesspath[0], dstname);
-			}
-			Ok(())
+	let url = format!("{}{}", &conf.account.url, &path);
+	let res = Client::new()
+		.request(Method::PUT, &url)
+		.basic_auth(&conf.account.user, Some(&conf.account.password))
+		.header(header::CONTENT_LENGTH, metadata.len())
+		.body(Body::new(reader))
+		.send()?;
+
+	if res.status().is_success() {
+		if *verbose {
+			println!("{} -> {}:{}", srcname, file[0], path);
 		}
-		_ => Err(anyhow!("Error during put - {:?}", r1))?,
+		Ok(())
+	} else {
+		bail!("Error during put - {:#?}", res)
 	}
 }
