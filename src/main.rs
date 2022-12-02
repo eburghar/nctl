@@ -1,7 +1,6 @@
 mod args;
 mod cmd;
 mod config;
-mod utils;
 
 use crate::{
 	args::{Opts, SubCommand},
@@ -11,11 +10,10 @@ use crate::{
 use anyhow::Result;
 
 fn main() -> Result<()> {
-	let opts: Opts = argh::from_env();
+	let opts: Opts = args::from_env();
 	// read yaml config
 	let config = Config::read(&opts.config)?;
 	match &opts.subcmd {
 		SubCommand::Cp(args) => cp(&config, args, &opts),
-		SubCommand::Ls(_) => Ok(()),
 	}
 }
