@@ -2,16 +2,20 @@ use std::path::Path;
 
 use argh::{FromArgs, TopLevelCommand};
 
-/// Extract latest projects archives from a gitlab server
+/// Interact with a webdav server (Nextcloud)
 #[derive(FromArgs)]
 pub struct Opts {
-	/// configuration file containing projects and gitlab connection parameters
+	/// configuration file containing webdav connection parameters and defining paths
 	#[argh(option, short = 'c', default = "\"/etc/nctl.yml\".to_string()")]
 	pub config: String,
 
 	/// more detailed output
 	#[argh(switch, short = 'v')]
 	pub verbose: bool,
+
+	/// simulate but don't do anything
+	#[argh(switch, short = 'd')]
+	pub dry_run: bool,
 
 	#[argh(subcommand)]
 	pub subcmd: SubCommand,
@@ -21,10 +25,13 @@ pub struct Opts {
 #[argh(subcommand)]
 pub enum SubCommand {
 	Cp(Cp),
+	Ls(Ls),
+	Rm(Rm),
+	Cleanup(Cleanup),
 }
 
 #[derive(FromArgs)]
-/// Copy a file to/from a webdav folder
+/// Copy a local file to a webdav folder
 #[argh(subcommand, name = "cp")]
 pub struct Cp {
 	/// source
@@ -34,6 +41,33 @@ pub struct Cp {
 	/// destination
 	#[argh(positional)]
 	pub dst: String,
+}
+
+/// List a webdav folder content
+#[derive(FromArgs)]
+#[argh(subcommand, name = "ls")]
+pub struct Ls {
+	/// path to list files from
+	#[argh(positional)]
+	pub path: String,
+}
+
+/// Delete files from a webdav server
+#[derive(FromArgs)]
+#[argh(subcommand, name = "rm")]
+pub struct Rm {
+	/// files to delete
+	#[argh(positional)]
+	pub files: Vec<String>,
+}
+
+/// Delete oldest files matching an expression from a webdav server
+#[derive(FromArgs)]
+#[argh(subcommand, name = "cleanup")]
+pub struct Cleanup {
+	/// cleanup configs to use
+	#[argh(positional)]
+	pub paths: Vec<String>,
 }
 
 /// copy of argh::from_env to insert command name and version in help text
